@@ -2,6 +2,7 @@ const express = require('express')
 const { v4: uuid } = require('uuid')
 const logger = require('../logger')
 const { bookmarks } = require('../store')
+const { isWebUri } = require('valid-url')
 
 const bookmarkRouter = express.Router()
 const bodyParser = express.json()
@@ -38,6 +39,20 @@ bookmarkRouter
             return res
                 .status(400)
                 .send('Invalid data');
+        }
+
+        if (!Number.isInteger(rating) || rating < 0 || rating > 5) {
+            logger.error(`Rating must be an integer between 0 and 5.`)
+            return res
+                .status(400)
+                .send('Invalid rating')
+        }
+
+        if (!isWebUri(url)) {
+            logger.error(`Invalid URL`)
+            return res
+                .status(400)
+                .send('Invalid URL')
         }
 
         //get id and add bookmark
