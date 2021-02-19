@@ -1,3 +1,4 @@
+const path = require('path')
 const express = require('express')
 const xss = require('xss')
 const { v4: uuid } = require('uuid')
@@ -17,7 +18,7 @@ const serializeBookmark = bookmark => ({
 })
 
 bookmarkRouter
-    .route('/bookmark')
+    .route('/')
     .get((req, res, next) => {
         const knexInstance = req.app.get('db')
         BookmarksService.getAllBookmarks(knexInstance)
@@ -74,14 +75,14 @@ bookmarkRouter
             .then(bookmark => {
                 res
                     .status(201)
-                    .location(`/bookmark/${bookmark.id}`)
+                    .location(path.posix.join(req.originalUrl, `${bookmark.id}`))
                     .json(serializeBookmark(bookmark))
             })
             .catch(next)
     })
 
 bookmarkRouter
-    .route('/bookmark/:bookmark_id')
+    .route('/:bookmark_id')
     .all((req, res, next) => {
         BookmarksService.getById(
             req.app.get('db'),
@@ -98,7 +99,7 @@ bookmarkRouter
             })
             .catch(next)
     })
-    .get((req, res, next) => {
+    .get((req, res) => {
         res.json({
             id: res.bookmark.id,
             title: xss(res.bookmark.title),
@@ -113,6 +114,29 @@ bookmarkRouter
             req.params.bookmark_id
         )
             .then(() => {
+                res.status(204).end()
+            })
+            .catch(next)
+    })
+    .patch(bodyParser, (req, res, next) => {
+        const { title, url, description, rating } = req.body
+        const bookmarkToUpdate = { title, url, description, rating }
+
+        const numberOfValues = Object.values(bookmarkToUpdate).filter(Boolean).length
+        if (numberOfValues === 0) {
+            return res.status(400).json({
+                error: {
+                    message: `Request body must contain either 'title', 'url', 'description' or 'rating'`
+                }
+            })
+        }
+
+        BookmarksService.updateBookmark(
+            req.app.get('db'),
+            req.params.bookmark_id,
+            bookmarkToUpdate
+        )
+            .then(numRowsAffected => {
                 res.status(204).end()
             })
             .catch(next)
